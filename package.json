@@ -1,0 +1,24 @@
+{
+  "name": "embedded_postgres",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "db:up": "bun run scripts/pg-dev.mjs",
+    "snapshot": "bun run scripts/apfs-snapshot.mjs",
+    "snapshot:test": "bun run scripts/apfs-snapshot-test.mjs",
+    "revert": "bun run scripts/apfs-snapshot.mjs revert",
+    "test": "bun test",
+    "test:apfs": "bun test tests/apfs-snapshot.test.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "pg": "^8.16.3",
+    "pg-embedded": "^0.2.3"
+  }
+}
