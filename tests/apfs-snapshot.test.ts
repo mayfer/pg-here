@@ -8,7 +8,7 @@ const port = Number(
 );
 
 test.skipIf(shouldSkip)("APFS clone snapshot roundtrip", async () => {
-  const result = await runSnapshotTest({ port });
+  const result = await runSnapshotTest({ port, log: console.log });
   expect(result.snapName.startsWith("snap_")).toBe(true);
   expect(result.instanceName.startsWith("inst_")).toBe(true);
 });

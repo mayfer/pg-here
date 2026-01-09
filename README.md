@@ -1,4 +1,28 @@
-# embedded_postgres
+# here-pg
+
+Per-project Postgres instances with instant snapshot & restore to support yolo development methods.
+
+## Use this from another project (recommended)
+
+Keep this repo in one place, and point it at any other project directory when you want a dedicated Postgres instance there.
+
+Example: Your app lives at `/Users/murat/Code/my-app`, but this repo lives elsewhere.
+
+```
+# start postgres for that project (one-time init happens automatically)
+bun run snapshot snapshot /Users/murat/Code/my-app/.here-pg
+
+# list snapshots for that project
+bun run snapshot list /Users/murat/Code/my-app/.here-pg
+
+# revert that project to a snapshot
+bun run revert /Users/murat/Code/my-app/.here-pg snap_YYYYMMDD_HHMMSS
+```
+
+Tips:
+- Pick a per-project folder (e.g. `.here-pg`) and reuse it.
+- The project directory just needs to be on the same APFS volume for clones to be fast.
+- You can also pass the directory with `--project/-p` instead of positional.
 
 To install dependencies:
 

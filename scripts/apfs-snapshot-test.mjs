@@ -26,6 +26,6 @@ if (flags.help || flags.h) {
   process.exit(0);
 }
 
-const result = await runSnapshotTest({ projectDir, port, keep });
+const result = await runSnapshotTest({ projectDir, port, keep, log: console.log });
 console.log("✅ APFS clone snapshot test passed");
 console.log(`Project data ${keep ? "retained" : "cleaned up"} at ${result.projectDir}`);
