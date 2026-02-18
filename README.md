@@ -23,6 +23,32 @@ postgresql://postgres:postgres@localhost:55432/postgres
 
 Connect from your app using that connection string, then Ctrl+C to stop.
 
+### One-command start from npm (no local install)
+
+If you have Bun installed, you can run the published package directly:
+
+```bash
+bunx pg-here
+```
+
+If this command currently fails with `could not determine executable to run for package`, you’re using a release that was published before the CLI binary was exposed. It will work after the next publish.
+
+This starts a local PostgreSQL instance in your current project directory and prints the connection string, then keeps the process alive until you stop it.
+
+`bunx pg-here` uses these defaults if you pass nothing:
+- `username=postgres`
+- `password=postgres`
+- `database=postgres`
+- `port=55432`
+
+All args are optional.
+
+Pass CLI flags just like the local script when you want to override defaults:
+
+```bash
+bunx pg-here --username postgres --password postgres --database my_app --port 55432
+```
+
 ### Programmatic usage
 
 Use `pg-here` directly from your server startup code and auto-create the app database if missing.
@@ -50,21 +76,23 @@ Set `postgresVersion` if you want to pin/select a specific PostgreSQL version.
 By default, `startPgHere()` installs SIGINT/SIGTERM shutdown hooks that stop Postgres when
 your process exits, and `stop()` preserves data (no cluster cleanup/delete).
 Use `await pgHere.cleanup()` only when you explicitly want full resource cleanup.
+`pg_stat_statements` is enabled automatically (`shared_preload_libraries` + extension creation).
+Set `enablePgStatStatements: false` to opt out.
 
 ### CLI Options
 
 ```bash
 # Custom credentials
-bun run db:up --username myuser --password mypass
+bun run db:up --username postgres --password postgres
 
 # Short flags
-bun run db:up -u myuser -p mypass
+bun run db:up -u postgres -p postgres
 
 # Custom port
 bun run db:up --port 55433
 
 # All together
-bun run db:up -u myuser -p mypass --port 55433
+bun run db:up -u postgres -p postgres --database postgres --port 55433
 
 # Pin postgres version
 bun run db:up --pg-version 18.0.0

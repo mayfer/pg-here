@@ -49,6 +49,21 @@ test.skipIf(shouldSkip)("programmatic startup creates missing database and prese
     await client.connect();
     const result = await client.query("select current_database() as db");
     expect(result.rows[0]?.db).toBe(database);
+
+    const preloadLibraries = await client.query("show shared_preload_libraries");
+    const sharedPreloadLibraries = String(
+      preloadLibraries.rows[0]?.shared_preload_libraries ?? ""
+    );
+    expect(sharedPreloadLibraries.includes("pg_stat_statements")).toBe(true);
+
+    const extensionResult = await client.query(
+      "select extname from pg_extension where extname = 'pg_stat_statements'"
+    );
+    expect(extensionResult.rowCount).toBe(1);
+
+    const statsResult = await client.query("select count(*)::int as n from pg_stat_statements");
+    expect(Number(statsResult.rows[0]?.n ?? -1)).toBeGreaterThanOrEqual(0);
+
     await client.query("create table if not exists persist_test (v text)");
     await client.query("truncate table persist_test");
     await client.query("insert into persist_test (v) values ('kept')");

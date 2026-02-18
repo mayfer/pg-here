@@ -1,10 +1,13 @@
 {
   "name": "pg-here",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "description": "Per-project embedded PostgreSQL with programmatic startup and auto DB creation.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "pg-here": "scripts/pg-dev.mjs"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -13,6 +16,8 @@
   },
   "files": [
     "dist",
+    "index.ts",
+    "scripts/pg-dev.mjs",
     "README.md"
   ],
   "private": false,
@@ -49,6 +54,7 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
+    "@types/pg": "^8.15.6",
     "typescript": "^5.9.2"
   },
   "dependencies": {

@@ -1,5 +1,6 @@
 import { join, resolve } from "node:path";
 import { PostgresInstance } from "pg-embedded";
+import { Client } from "pg";
 
 export type PgHereShutdownSignal = "SIGINT" | "SIGTERM" | "SIGHUP";
 
@@ -18,6 +19,7 @@ export interface PgHereOptions {
   registerProcessShutdownHandlers?: boolean;
   shutdownSignals?: PgHereShutdownSignal[];
   cleanupOnShutdown?: boolean;
+  enablePgStatStatements?: boolean;
 }
 
 export interface StopPgHereOptions {
@@ -40,6 +42,7 @@ const DEFAULT_PASSWORD = "postgres";
 const DEFAULT_PORT = 55432;
 const DEFAULT_DATABASE = "postgres";
 const DEFAULT_SHUTDOWN_SIGNALS: PgHereShutdownSignal[] = ["SIGINT", "SIGTERM"];
+const PG_STAT_STATEMENTS_EXTENSION = "pg_stat_statements";
 
 export function createPgHereInstance(options: PgHereOptions = {}): PostgresInstance {
   const root = resolve(options.projectDir ?? process.cwd());
@@ -108,6 +111,10 @@ export async function startPgHere(options: PgHereOptions = {}): Promise<PgHereHa
     await ensurePgHereDatabase(instance, database);
   }
 
+  if (options.enablePgStatStatements ?? true) {
+    await ensurePgStatStatements(instance, database);
+  }
+
   const defaultCleanupOnShutdown = options.cleanupOnShutdown ?? false;
   const connectionString = instance.connectionInfo.connectionString;
   const databaseConnectionString = setConnectionDatabase(connectionString, database);
@@ -143,6 +150,86 @@ function setConnectionDatabase(connectionString: string, database: string): stri
   const connectionUrl = new URL(connectionString);
   connectionUrl.pathname = `/${database}`;
   return connectionUrl.toString();
+}
+
+async function ensurePgStatStatements(
+  instance: PostgresInstance,
+  database: string
+): Promise<void> {
+  await ensureSharedPreloadLibrary(instance, PG_STAT_STATEMENTS_EXTENSION);
+  await ensureExtension(instance, database, PG_STAT_STATEMENTS_EXTENSION);
+}
+
+async function ensureSharedPreloadLibrary(
+  instance: PostgresInstance,
+  libraryName: string
+): Promise<boolean> {
+  const adminConnection = setConnectionDatabase(
+    instance.connectionInfo.connectionString,
+    DEFAULT_DATABASE
+  );
+  const client = new Client({ connectionString: adminConnection });
+
+  try {
+    await client.connect();
+    const result = await client.query("show shared_preload_libraries");
+    const rawLibraries = String(result.rows[0]?.shared_preload_libraries ?? "");
+    const libraries = parsePreloadLibraries(rawLibraries);
+
+    if (libraries.includes(libraryName)) {
+      return false;
+    }
+
+    const nextLibraries = [...libraries, libraryName];
+    const librariesValue = escapeSqlLiteral(nextLibraries.join(","));
+    await client.query(
+      `ALTER SYSTEM SET shared_preload_libraries = '${librariesValue}'`
+    );
+  } finally {
+    await client.end().catch(() => {});
+  }
+
+  await instance.stop().catch(() => {});
+  await instance.start();
+  return true;
+}
+
+async function ensureExtension(
+  instance: PostgresInstance,
+  database: string,
+  extensionName: string
+): Promise<void> {
+  const connectionString = setConnectionDatabase(
+    instance.connectionInfo.connectionString,
+    database
+  );
+  const client = new Client({ connectionString });
+
+  try {
+    await client.connect();
+    await client.query(`CREATE EXTENSION IF NOT EXISTS ${quoteIdentifier(extensionName)}`);
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
+
+function parsePreloadLibraries(value: string): string[] {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(",")
+    .map((library) => library.trim())
+    .filter(Boolean);
+}
+
+function quoteIdentifier(identifier: string): string {
+  return `"${identifier.replaceAll('"', '""')}"`;
+}
+
+function escapeSqlLiteral(value: string): string {
+  return value.replaceAll("'", "''");
 }
 
 function registerPgHereShutdownHandlers({
