@@ -1,10 +1,9 @@
-import { PostgresInstance } from "pg-embedded";
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
-
-const root = process.cwd();
+import { startPgHere } from "../index.ts";
 
 const argv = await yargs(hideBin(process.argv))
+  .version(false)
   .option("username", {
     alias: "u",
     default: "postgres",
@@ -19,39 +18,28 @@ const argv = await yargs(hideBin(process.argv))
     default: 55432,
     describe: "PostgreSQL port",
   })
+  .option("database", {
+    alias: "d",
+    default: "postgres",
+    describe: "Database to use (created automatically if missing)",
+  })
+  .option("pg-version", {
+    default: process.env.PG_VERSION,
+    describe: "PostgreSQL version (e.g. 18.0.0 or >=17.0)",
+  })
   .parse();
 
-const pg = new PostgresInstance({
-  // per-project data directory
-  dataDir: `${root}/pg_local/data`,
-
-  // where pg-embedded downloads postgres binaries
-  installationDir: `${root}/pg_local/bin`,
-
-  // choose a project-specific port
+const pg = await startPgHere({
+  projectDir: process.cwd(),
   port: argv.port,
-
   username: argv.username,
   password: argv.password,
-
-  // keep data between runs
-  persistent: true,
+  database: argv.database,
+  postgresVersion: argv["pg-version"],
 });
 
-async function shutdown(code = 0) {
-  try { await pg.stop(); } catch {}
-  try { await pg.cleanup(); } catch {}
-  process.exit(code);
-}
-
-process.on("SIGINT", () => shutdown(0));
-process.on("SIGTERM", () => shutdown(0));
-
-// start postgres (downloads correct arch automatically)
-await pg.start();
-
 // print connection string for tooling
-console.log(pg.connectionInfo.connectionString);
+console.log(pg.databaseConnectionString);
 
 // keep this process alive; Ctrl-C stops postgres
 setInterval(() => {}, 1 << 30);

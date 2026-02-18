@@ -23,6 +23,34 @@ postgresql://postgres:postgres@localhost:55432/postgres
 
 Connect from your app using that connection string, then Ctrl+C to stop.
 
+### Programmatic usage
+
+Use `pg-here` directly from your server startup code and auto-create the app database if missing.
+
+```ts
+import { startPgHere } from "pg-here";
+
+const pgHere = await startPgHere({
+  projectDir: process.cwd(),
+  port: 55432,
+  database: "my_app",
+  createDatabaseIfMissing: true,
+  postgresVersion: "18.0.0",
+});
+
+console.log(pgHere.databaseConnectionString);
+
+// On shutdown:
+await pgHere.stop();
+```
+
+`databaseConnectionString` points to your target DB (`my_app` above).  
+If the DB does not exist yet, `createDatabaseIfMissing: true` creates it on startup.
+Set `postgresVersion` if you want to pin/select a specific PostgreSQL version.
+By default, `startPgHere()` installs SIGINT/SIGTERM shutdown hooks that stop Postgres when
+your process exits, and `stop()` preserves data (no cluster cleanup/delete).
+Use `await pgHere.cleanup()` only when you explicitly want full resource cleanup.
+
 ### CLI Options
 
 ```bash
@@ -37,9 +65,12 @@ bun run db:up --port 55433
 
 # All together
 bun run db:up -u myuser -p mypass --port 55433
+
+# Pin postgres version
+bun run db:up --pg-version 18.0.0
 ```
 
-**Defaults**: username=`postgres`, password=`postgres`, port=`55432`
+**Defaults**: username=`postgres`, password=`postgres`, port=`55432`, pg-version=`PG_VERSION` or pg-embedded default
 
 ### Project Structure
 
@@ -191,6 +222,7 @@ Optional flags:
 ```
 --project/-p   project directory (default: ./pg_projects/apfs_test_TIMESTAMP)
 --port         postgres port (default: 55433 or PGPORT_SNAPSHOT_TEST)
+--pg-version   postgres version (default: PG_VERSION or pg-embedded default)
 --keep         keep the project directory after the test
 ```
 
@@ -219,6 +251,7 @@ Optional flags:
 --small-rows   rows for small dataset (default: 50_000)
 --large-rows   rows for large dataset (default: 2_000_000)
 --row-bytes    payload bytes per row (default: 256)
+--pg-version   postgres version (default: PG_VERSION or pg-embedded default)
 ```
 
 Example:

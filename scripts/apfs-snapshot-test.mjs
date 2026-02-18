@@ -1,6 +1,6 @@
 import { parseSnapshotTestArgs, runSnapshotTest } from "./apfs-snapshot-test-lib.mjs";
 
-const { projectDir, port, keep, flags } = parseSnapshotTestArgs(process.argv.slice(2));
+const { projectDir, port, postgresVersion, keep, flags } = parseSnapshotTestArgs(process.argv.slice(2));
 
 if (flags.help || flags.h) {
   const defaultProject = undefined;
@@ -12,10 +12,12 @@ if (flags.help || flags.h) {
   console.log("Defaults:");
   console.log("  projectDir: ./pg_projects/apfs_test_TIMESTAMP");
   console.log("  port: 55433 (or PGPORT_SNAPSHOT_TEST)");
+  console.log("  pg-version: from PG_VERSION or pg-embedded default");
   console.log("");
   console.log("Flags:");
   console.log("  --project, -p   project directory (same as positional projectDir)");
   console.log("  --port          postgres port to use");
+  console.log("  --pg-version    postgres version (e.g. 18.0.0 or >=17.0)");
   console.log("  --keep          keep the project directory after the test");
   console.log("  --help, -h      show this help");
   console.log("");
@@ -26,6 +28,6 @@ if (flags.help || flags.h) {
   process.exit(0);
 }
 
-const result = await runSnapshotTest({ projectDir, port, keep, log: console.log });
+const result = await runSnapshotTest({ projectDir, port, postgresVersion, keep, log: console.log });
 console.log("✅ APFS clone snapshot test passed");
 console.log(`Project data ${keep ? "retained" : "cleaned up"} at ${result.projectDir}`);

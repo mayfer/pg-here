@@ -29,8 +29,9 @@ async function fetchRows(pgInstance) {
   });
 }
 
-async function initCluster({ root, activeInstance, port }) {
+async function initCluster({ root, activeInstance, port, postgresVersion }) {
   const pgInit = new PostgresInstance({
+    version: postgresVersion,
     dataDir: activeInstance,
     installationDir: path.join(root, "pg_local", "bin"),
     port,
@@ -45,6 +46,7 @@ async function initCluster({ root, activeInstance, port }) {
 export async function runSnapshotTest({
   projectDir,
   port,
+  postgresVersion = process.env.PG_VERSION,
   keep = false,
   log = () => {},
 } = {}) {
@@ -67,12 +69,13 @@ export async function runSnapshotTest({
     .catch(() => false);
   if (!activeExists) {
     log("Initialize new Postgres cluster");
-    await initCluster({ root, activeInstance, port: pgPort });
+    await initCluster({ root, activeInstance, port: pgPort, postgresVersion });
   }
   log("Point current symlink at active instance");
   await setCurrentSymlink(currentPath, activeInstance);
 
   const pgInstance = new PostgresInstance({
+    version: postgresVersion,
     dataDir: currentPath,
     installationDir: path.join(root, "pg_local", "bin"),
     port: pgPort,
@@ -148,7 +151,8 @@ export function parseSnapshotTestArgs(argv) {
   const [projectArg] = positionals;
   const projectDir = projectArg ?? flags.project ?? flags.p;
   const port = flags.port ? Number(flags.port) : undefined;
+  const postgresVersion = flags["pg-version"] ?? process.env.PG_VERSION;
   const keep = Boolean(flags.keep);
 
-  return { projectDir, port, keep, flags };
+  return { projectDir, port, postgresVersion, keep, flags };
 }
