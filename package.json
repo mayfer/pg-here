@@ -1,6 +1,6 @@
 {
   "name": "pg-here",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Per-project embedded PostgreSQL with programmatic startup and auto DB creation.",
   "type": "module",
   "main": "./dist/index.js",
