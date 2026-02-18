@@ -31,7 +31,7 @@ If you have Bun installed, you can run the published package directly:
 bunx pg-here
 ```
 
-If this command currently fails with `could not determine executable to run for package`, you’re using a release that was published before the CLI binary was exposed. It will work after the next publish.
+If this command fails with `could not determine executable to run for package`, install at least `pg-here@0.1.4` (this is the first release with a real package binary).
 
 This starts a local PostgreSQL instance in your current project directory and prints the connection string, then keeps the process alive until you stop it.
 

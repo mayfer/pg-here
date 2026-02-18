@@ -1,12 +1,12 @@
 {
   "name": "pg-here",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Per-project embedded PostgreSQL with programmatic startup and auto DB creation.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {
-    "pg-here": "scripts/pg-dev.mjs"
+    "pg-here": "bin/pg-here.mjs"
   },
   "exports": {
     ".": {
@@ -17,6 +17,7 @@
   "files": [
     "dist",
     "index.ts",
+    "bin/pg-here.mjs",
     "scripts/pg-dev.mjs",
     "README.md"
   ],
