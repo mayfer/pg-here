@@ -1,6 +1,25 @@
 import { PostgresInstance } from "pg-embedded";
+import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
 
 const root = process.cwd();
+
+const argv = await yargs(hideBin(process.argv))
+  .option("username", {
+    alias: "u",
+    default: "postgres",
+    describe: "PostgreSQL username",
+  })
+  .option("password", {
+    alias: "p",
+    default: "postgres",
+    describe: "PostgreSQL password",
+  })
+  .option("port", {
+    default: 55432,
+    describe: "PostgreSQL port",
+  })
+  .parse();
 
 const pg = new PostgresInstance({
   // per-project data directory
@@ -10,10 +29,10 @@ const pg = new PostgresInstance({
   installationDir: `${root}/pg_local/bin`,
 
   // choose a project-specific port
-  port: Number(process.env.PGPORT ?? 55432),
+  port: argv.port,
 
-  username: "postgres",
-  password: "postgres",
+  username: argv.username,
+  password: argv.password,
 
   // keep data between runs
   persistent: true,

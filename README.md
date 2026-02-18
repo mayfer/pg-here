@@ -1,26 +1,87 @@
-# here-pg
+# pg-here
 
 Per-project Postgres instances with instant snapshot & restore to support yolo development methods.
+
+Repository: https://github.com/mayfer/pg-here
+
+## Project-Local PostgreSQL Setup
+
+Each project runs its own isolated PostgreSQL instance. Downloads correct binary automatically for your CPU architecture (x86_64 / arm64). Database lives inside the project folder.
+
+### Quick Start
+
+Start PostgreSQL:
+
+```bash
+bun run db:up
+```
+
+Output:
+```
+postgresql://postgres:postgres@localhost:55432/postgres
+```
+
+Connect from your app using that connection string, then Ctrl+C to stop.
+
+### CLI Options
+
+```bash
+# Custom credentials
+bun run db:up --username myuser --password mypass
+
+# Short flags
+bun run db:up -u myuser -p mypass
+
+# Custom port
+bun run db:up --port 55433
+
+# All together
+bun run db:up -u myuser -p mypass --port 55433
+```
+
+**Defaults**: username=`postgres`, password=`postgres`, port=`55432`
+
+### Project Structure
+
+```
+project/
+  pg_local/
+    data/        # PostgreSQL data cluster (persists between runs)
+    bin/         # Downloaded PostgreSQL binaries
+  scripts/
+    pg-dev.mjs   # Runner script
+  package.json
+```
+
+### How It Works
+
+- PostgreSQL only runs when you execute `bun run db:up`
+- Correct architecture binary downloads automatically on first run
+- Data persists in `pg_local/data/` across restarts
+- Process stops completely on exit (Ctrl+C)
+- One instance per project, no system PostgreSQL dependency
+
+---
 
 ## Use this from another project (recommended)
 
 Keep this repo in one place, and point it at any other project directory when you want a dedicated Postgres instance there.
 
-Example: Your app lives at `/Users/murat/Code/my-app`, but this repo lives elsewhere.
+Example: your app lives at `/path/to/my-app`, but this repo lives elsewhere.
 
 ```
 # start postgres for that project (one-time init happens automatically)
-bun run snapshot snapshot /Users/murat/Code/my-app/.here-pg
+bun run snapshot snapshot /path/to/my-app/.pg-here
 
 # list snapshots for that project
-bun run snapshot list /Users/murat/Code/my-app/.here-pg
+bun run snapshot list /path/to/my-app/.pg-here
 
 # revert that project to a snapshot
-bun run revert /Users/murat/Code/my-app/.here-pg snap_YYYYMMDD_HHMMSS
+bun run revert /path/to/my-app/.pg-here snap_YYYYMMDD_HHMMSS
 ```
 
 Tips:
-- Pick a per-project folder (e.g. `.here-pg`) and reuse it.
+- Pick a per-project folder (e.g. `.pg-here`) and reuse it.
 - The project directory just needs to be on the same APFS volume for clones to be fast.
 - You can also pass the directory with `--project/-p` instead of positional.
 
@@ -64,7 +125,7 @@ By default, snapshots live under `./pg_projects/default`. You can pass a project
 - Stops Postgres during snapshot/revert (cold stop/start)
 - Keeps snapshots immutable and restores into new instances
 
-### Why it’s great
+### Why it's great
 
 - Near‑instant snapshot and revert via copy‑on‑write
 - Space grows only with changed blocks
@@ -109,7 +170,7 @@ Flags (optional):
 --pg-ctl       path to pg_ctl (overrides PG_CTL)
 ```
 
-If `pg_ctl` isn’t on your `PATH`, set `PG_CTL`. By default the script looks in `./pg_local/bin/*/bin/pg_ctl`.
+If `pg_ctl` isn't on your `PATH`, set `PG_CTL`. By default the script looks in `./pg_local/bin/*/bin/pg_ctl`.
 
 ### One‑shot test (does everything end‑to‑end)
 
@@ -142,7 +203,31 @@ bun run test:apfs
 
 Set `SKIP_APFS_TEST=1` to skip the APFS snapshot test.
 
+## APFS clone speed benchmark
+
+Compares clone time between a small and large dataset by seeding a table and cloning the data directory.
+
+```
+bun run bench:apfs
+```
+
+Optional flags:
+
+```
+--project/-p   project directory (default: ./pg_projects/bench)
+--port         postgres port (default: 55434 or PGPORT_BENCH)
+--small-rows   rows for small dataset (default: 50_000)
+--large-rows   rows for large dataset (default: 2_000_000)
+--row-bytes    payload bytes per row (default: 256)
+```
+
+Example:
+
+```
+bun run bench:apfs --small-rows 100000 --large-rows 5000000 --row-bytes 512
+```
+
 ### When to choose something else
 
-- Need online “rewind to 5 minutes ago” repeatedly → base backup + WAL/PITR
+- Need online "rewind to 5 minutes ago" repeatedly → base backup + WAL/PITR
 - Dataset ≥ ~50 GB with heavy churn → dedicated APFS volume + volume snapshots, or move DB off the laptop

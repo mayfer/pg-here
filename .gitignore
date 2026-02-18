@@ -36,7 +36,7 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # local postgres snapshot projects
 pg_projects
 
-# embedded postgres binaries/data
+# pg-here local binaries/data
 pg_local
 
 bun.lock
