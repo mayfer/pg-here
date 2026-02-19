@@ -34,9 +34,9 @@ const argv = await yargs(hideBin(process.argv))
     describe: "PostgreSQL version (e.g. 18.0.0 or >=17.0)",
   })
   .option("auto-port", {
-    default: true,
+    default: "true",
     describe: "Automatically find available port if requested port is in use",
-    type: "boolean",
+    type: "string",
   })
   .parse();
 
@@ -50,7 +50,7 @@ const startInstance = () =>
     password: argv.password,
     database: argv.database,
     postgresVersion: argv["pg-version"],
-    autoPort: argv["auto-port"],
+    autoPort: argv["auto-port"] === "true",
   });
 
 try {
