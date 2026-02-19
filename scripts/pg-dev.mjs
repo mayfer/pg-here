@@ -3,6 +3,8 @@ import { hideBin } from "yargs/helpers";
 import { startPgHere } from "../index.ts";
 import {
   maybePrintLinuxRuntimeHelp,
+  getPreStartPgHereState,
+  printPgHereStartupInfo,
   startPgHereWithLibxml2Compat,
 } from "./cli-error-help.mjs";
 
@@ -34,6 +36,7 @@ const argv = await yargs(hideBin(process.argv))
   .parse();
 
 let pg;
+const preStartState = getPreStartPgHereState(process.cwd());
 const startInstance = () =>
   startPgHere({
     projectDir: process.cwd(),
@@ -53,8 +56,12 @@ try {
   throw error;
 }
 
-// print connection string for tooling
-console.log(pg.databaseConnectionString);
+printPgHereStartupInfo({
+  connectionString: pg.databaseConnectionString,
+  instance: pg.instance,
+  preStartState,
+  requestedVersion: argv["pg-version"],
+});
 
 // keep this process alive; Ctrl-C stops postgres
 setInterval(() => {}, 1 << 30);

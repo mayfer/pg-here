@@ -5,6 +5,8 @@ import { hideBin } from "yargs/helpers";
 import { startPgHere } from "../dist/index.js";
 import {
   maybePrintLinuxRuntimeHelp,
+  getPreStartPgHereState,
+  printPgHereStartupInfo,
   startPgHereWithLibxml2Compat,
 } from "../scripts/cli-error-help.mjs";
 
@@ -36,6 +38,7 @@ const argv = await yargs(hideBin(process.argv))
   .parse();
 
 let pg;
+const preStartState = getPreStartPgHereState(process.cwd());
 const startInstance = () =>
   startPgHere({
     projectDir: process.cwd(),
@@ -55,5 +58,11 @@ try {
   throw error;
 }
 
-console.log(pg.databaseConnectionString);
+printPgHereStartupInfo({
+  connectionString: pg.databaseConnectionString,
+  instance: pg.instance,
+  preStartState,
+  requestedVersion: argv["pg-version"],
+});
+
 setInterval(() => {}, 1 << 30);

@@ -1,5 +1,15 @@
 import { spawnSync } from "node:child_process";
-import { accessSync, existsSync, lstatSync, mkdirSync, readlinkSync, rmSync, symlinkSync, F_OK } from "node:fs";
+import {
+  accessSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readlinkSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  F_OK,
+} from "node:fs";
 import { join } from "node:path";
 
 const LIBXML2_SONAME = "libxml2.so.2";
@@ -15,6 +25,12 @@ const LIB_PATHS = [
   "/lib",
   "/usr/local/lib",
 ];
+
+const PG_LOCAL_DIR = "pg_local";
+const PG_LOCAL_DATA_DIR = "data";
+const PG_LOCAL_BIN_DIR = "bin";
+const PG_VERSION_FILE = "PG_VERSION";
+const VERSION_DIR_RE = /^\d+\.\d+(?:\.\d+)?$/;
 
 export function maybePrintLinuxRuntimeHelp(error) {
   const message = String(error?.message ?? error);
@@ -54,7 +70,7 @@ export function maybePrintLinuxRuntimeHelp(error) {
   if (binPath.includes("/bin/bin/postgres")) {
     console.error("  Your local pg_local cache looks partially provisioned (bin/bin/postgres path).");
     console.error("  Try removing it and retrying:");
-    console.error("    rm -rf pg_local && bunx pg-here@0.1.8");
+    console.error("    rm -rf pg_local && bunx pg-here@0.1.9");
   }
   console.error(
     `If your distro requires different package names, install packages that provide: ${missingLibs.join(", ")}`
@@ -94,6 +110,91 @@ export function hasLibxml2CompatibilityNeed(error) {
   return missing.includes(LIBXML2_SONAME) || message.includes("libxml2.so.2");
 }
 
+export function getPreStartPgHereState(projectDir) {
+  const normalizedProjectDir = typeof projectDir === "string" && projectDir ? projectDir : process.cwd();
+  const dataDir = join(normalizedProjectDir, PG_LOCAL_DIR, PG_LOCAL_DATA_DIR);
+  const binDir = join(normalizedProjectDir, PG_LOCAL_DIR, PG_LOCAL_BIN_DIR);
+  const hasData = existsSync(dataDir);
+  const hasPgVersionFile = existsSync(join(dataDir, PG_VERSION_FILE));
+  const installedVersions = getInstalledPostgresVersions(binDir);
+
+  return {
+    dataDir,
+    hasData,
+    hasPgVersionFile,
+    installedVersions,
+    installedVersion: installedVersions[0] ?? "",
+  };
+}
+
+export function printPgHereStartupInfo({
+  connectionString,
+  instance,
+  preStartState,
+  requestedVersion,
+}) {
+  const { hasData, installedVersion } = preStartState ?? {};
+  const startedVersion = getPostgresInstanceVersion(instance);
+
+  const displayVersion =
+    startedVersion || requestedVersion || "default";
+  const dataPath = `${PG_LOCAL_DIR}/${PG_LOCAL_DATA_DIR}/`;
+  const firstLine = hasData
+    ? getExistingDataStatusLine({ installedVersion, startedVersion, requestedVersion, dataPath })
+    : `Launching PostgreSQL ${displayVersion} into new ${PG_LOCAL_DIR}/`;
+
+  console.log(firstLine);
+  if (typeof connectionString === "string" && connectionString.length > 0) {
+    console.log(`psql ${connectionString}`);
+  }
+}
+
+function getExistingDataStatusLine({
+  installedVersion,
+  startedVersion,
+  requestedVersion,
+  dataPath,
+}) {
+  const runVersion = startedVersion || requestedVersion || "default";
+  if (installedVersion && startedVersion && installedVersion !== startedVersion) {
+    return `Reusing existing ${dataPath} (pg_local/bin has ${installedVersion}, running PostgreSQL is ${startedVersion})`;
+  }
+
+  if (installedVersion && startedVersion && installedVersion === startedVersion) {
+    return `Reusing existing ${dataPath} with PostgreSQL ${runVersion}`;
+  }
+
+  return `Reusing existing ${dataPath} with PostgreSQL ${runVersion}`;
+}
+
+function getPostgresInstanceVersion(instance) {
+  try {
+    if (typeof instance?.getPostgreSqlVersion === "function") {
+      return instance.getPostgreSqlVersion();
+    }
+  } catch {
+    return "";
+  }
+
+  return "";
+}
+
+function compareSemVerDesc(left, right) {
+  const leftParts = left.split(".").map((segment) => Number.parseInt(segment, 10) || 0);
+  const rightParts = right.split(".").map((segment) => Number.parseInt(segment, 10) || 0);
+  const maxLength = Math.max(leftParts.length, rightParts.length);
+  for (let i = 0; i < maxLength; i += 1) {
+    const leftValue = leftParts[i] ?? 0;
+    const rightValue = rightParts[i] ?? 0;
+    if (leftValue === rightValue) {
+      continue;
+    }
+    return rightValue - leftValue;
+  }
+
+  return 0;
+}
+
 export async function startPgHereWithLibxml2Compat(start, workingDir) {
   try {
     return await start();
@@ -110,6 +211,25 @@ export async function startPgHereWithLibxml2Compat(start, workingDir) {
     return await start();
   }
 }
+
+function getInstalledPostgresVersions(baseDir) {
+  if (!existsSync(baseDir)) {
+    return [];
+  }
+
+  let entries = [];
+  try {
+    entries = readdirSync(baseDir, { withFileTypes: true });
+  } catch {
+    return [];
+  }
+
+  return entries
+    .filter((entry) => entry.isDirectory() && VERSION_DIR_RE.test(entry.name))
+    .map((entry) => entry.name)
+    .sort(compareSemVerDesc);
+}
+
 
 export function ensureLibxml2Compatibility(workingDir) {
   if (process.platform !== "linux") {
