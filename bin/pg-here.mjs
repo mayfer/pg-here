@@ -23,8 +23,7 @@ const argv = await yargs(hideBin(process.argv))
     describe: "PostgreSQL password",
   })
   .option("port", {
-    default: 55432,
-    describe: "PostgreSQL port",
+    describe: "PostgreSQL port (default: 55432)",
   })
   .option("database", {
     alias: "d",
@@ -37,7 +36,7 @@ const argv = await yargs(hideBin(process.argv))
   })
   .option("auto-port", {
     default: "true",
-    describe: "Automatically find available port if requested port is in use",
+    describe: "Auto-assign available port when default port is in use",
     type: "string",
   })
   .parse();

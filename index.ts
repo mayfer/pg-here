@@ -127,15 +127,17 @@ export async function stopPgHere(
 }
 
 export async function startPgHere(options: PgHereOptions = {}): Promise<PgHereHandle> {
-  const requestedPort = options.port ?? DEFAULT_PORT;
+  const autoPortEnabled = options.autoPort ?? true;
+  const usingDefaultPort = options.port === undefined;
 
-  const autoPort = options.autoPort ?? true;
-  const port = autoPort
-    ? await findAvailablePort(requestedPort)
-    : requestedPort;
+  // Only auto-assign port when using the default port
+  // If user explicitly specifies a port, use that exact port
+  const port = usingDefaultPort && autoPortEnabled
+    ? await findAvailablePort(DEFAULT_PORT)
+    : (options.port ?? DEFAULT_PORT);
 
-  if (port !== requestedPort) {
-    console.warn(`Port ${requestedPort} is in use, using port ${port} instead`);
+  if (port !== DEFAULT_PORT && usingDefaultPort) {
+    console.warn(`Port ${DEFAULT_PORT} is in use, using port ${port} instead`);
   }
 
   const instance = createPgHereInstance({ ...options, port });
