@@ -1,4 +1,5 @@
 import { join, resolve } from "node:path";
+import { createServer } from "node:net";
 import { PostgresInstance } from "pg-embedded";
 import { Client } from "pg";
 
@@ -20,6 +21,7 @@ export interface PgHereOptions {
   shutdownSignals?: PgHereShutdownSignal[];
   cleanupOnShutdown?: boolean;
   enablePgStatStatements?: boolean;
+  autoPort?: boolean;
 }
 
 export interface StopPgHereOptions {
@@ -43,6 +45,31 @@ const DEFAULT_PORT = 55432;
 const DEFAULT_DATABASE = "postgres";
 const DEFAULT_SHUTDOWN_SIGNALS: PgHereShutdownSignal[] = ["SIGINT", "SIGTERM"];
 const PG_STAT_STATEMENTS_EXTENSION = "pg_stat_statements";
+
+async function isPortAvailable(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const server = createServer();
+    server.once("error", () => resolve(false));
+    server.once("listening", () => {
+      server.close(() => resolve(true));
+    });
+    server.listen(port, "localhost");
+  });
+}
+
+async function findAvailablePort(
+  startPort: number,
+  maxAttempts = 1000
+): Promise<number> {
+  for (let port = startPort; port < startPort + maxAttempts; port++) {
+    if (await isPortAvailable(port)) {
+      return port;
+    }
+  }
+  throw new Error(
+    `No available port found after ${maxAttempts} attempts starting from ${startPort}`
+  );
+}
 
 export function createPgHereInstance(options: PgHereOptions = {}): PostgresInstance {
   const root = resolve(options.projectDir ?? process.cwd());
@@ -100,7 +127,20 @@ export async function stopPgHere(
 }
 
 export async function startPgHere(options: PgHereOptions = {}): Promise<PgHereHandle> {
-  const instance = createPgHereInstance(options);
+  const autoPortEnabled = options.autoPort ?? true;
+  const usingDefaultPort = options.port === undefined;
+
+  // Only auto-assign port when using the default port
+  // If user explicitly specifies a port, use that exact port
+  const port = usingDefaultPort && autoPortEnabled
+    ? await findAvailablePort(DEFAULT_PORT)
+    : (options.port ?? DEFAULT_PORT);
+
+  if (port !== DEFAULT_PORT && usingDefaultPort) {
+    console.warn(`Port ${DEFAULT_PORT} is in use, using port ${port} instead`);
+  }
+
+  const instance = createPgHereInstance({ ...options, port });
   await instance.start();
 
   const database = options.database ?? DEFAULT_DATABASE;

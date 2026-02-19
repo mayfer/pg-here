@@ -23,8 +23,7 @@ const argv = await yargs(hideBin(process.argv))
     describe: "PostgreSQL password",
   })
   .option("port", {
-    default: 55432,
-    describe: "PostgreSQL port",
+    describe: "PostgreSQL port (default: 55432)",
   })
   .option("database", {
     alias: "d",
@@ -34,6 +33,11 @@ const argv = await yargs(hideBin(process.argv))
   .option("pg-version", {
     default: process.env.PG_VERSION,
     describe: "PostgreSQL version (e.g. 18.0.0 or >=17.0)",
+  })
+  .option("auto-port", {
+    default: "true",
+    describe: "Auto-assign available port when default port is in use",
+    type: "string",
   })
   .parse();
 
@@ -47,6 +51,7 @@ const startInstance = () =>
     password: argv.password,
     database: argv.database,
     postgresVersion: argv["pg-version"],
+    autoPort: argv["auto-port"] === "true",
   });
 
 try {
