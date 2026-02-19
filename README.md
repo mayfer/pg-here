@@ -31,7 +31,27 @@ If you have Bun installed, you can run the published package directly:
 bunx pg-here
 ```
 
-If this command fails with `could not determine executable to run for package`, install at least `pg-here@0.1.4` (this is the first release with a real package binary).
+This is the single command you want from any directory.
+
+If it still resolves an older release, the package `latest` dist-tag may be behind:
+
+To force that version and bypass a stale cache:
+
+```bash
+bunx pg-here@0.1.8
+```
+
+If maintainers want plain `bunx pg-here` to work for everyone, run once:
+
+```bash
+npm dist-tag add pg-here@0.1.8 latest
+```
+
+After that, this should work anywhere:
+
+```bash
+bunx pg-here
+```
 
 This starts a local PostgreSQL instance in your current project directory and prints the connection string, then keeps the process alive until you stop it.
 
@@ -47,6 +67,58 @@ Pass CLI flags just like the local script when you want to override defaults:
 
 ```bash
 bunx pg-here --username postgres --password postgres --database my_app --port 55432
+```
+
+#### Linux note
+
+If `bunx pg-here` fails with `error while loading shared libraries`:
+- install missing system packages on the host (not in npm), then retry
+- restart the command
+
+Most commonly:
+
+```bash
+# Ubuntu/Debian
+sudo apt-get update && sudo apt-get install -y libxml2
+
+# Fedora/RHEL
+sudo dnf install -y libxml2
+
+# Alpine
+sudo apk add libxml2
+```
+
+If that machine is intentionally minimal (or containerized), use an image with PostgreSQL runtime dependencies.
+
+If apt says `Package 'libxml2' has no installation candidate`, your apt sources are likely missing standard repos.
+
+```bash
+cat /etc/os-release
+apt-cache search '^libxml2$'
+```
+
+and if that returns nothing, fix apt sources for your distro/arch first, or use a base image that includes PostgreSQL runtime packages.
+
+Important ABI note:
+
+- If your host exposes `libxml2.so.16` but not `libxml2.so.2`, older releases may fail to start before applying fallback.
+- If a failure mentions `/pg_local/bin/bin/postgres`, clear and redownload:
+
+```bash
+rm -rf pg_local
+bunx pg-here@0.1.8
+```
+
+For this release, `0.1.8` also attempts a one-time compatibility workaround when it detects
+`libxml2.so.16`-only hosts:
+- it creates a local runtime symlink in `./pg_local/runtime-libs/libxml2.so.2` pointing to the discovered `libxml2.so.16`
+- sets `LD_LIBRARY_PATH` for the retry so `postgres`/`initdb` can launch
+
+If your system is locked down and this still fails, create a global compatibility symlink (where permitted):
+
+```bash
+sudo ln -sfn /usr/lib/x86_64-linux-gnu/libxml2.so.16 /usr/local/lib/libxml2.so.2
+sudo ldconfig
 ```
 
 ### Programmatic usage

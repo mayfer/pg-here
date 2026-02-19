@@ -3,6 +3,10 @@
 import yargs from "yargs";
 import { hideBin } from "yargs/helpers";
 import { startPgHere } from "../dist/index.js";
+import {
+  maybePrintLinuxRuntimeHelp,
+  startPgHereWithLibxml2Compat,
+} from "../scripts/cli-error-help.mjs";
 
 const argv = await yargs(hideBin(process.argv))
   .version(false)
@@ -31,14 +35,25 @@ const argv = await yargs(hideBin(process.argv))
   })
   .parse();
 
-const pg = await startPgHere({
-  projectDir: process.cwd(),
-  port: argv.port,
-  username: argv.username,
-  password: argv.password,
-  database: argv.database,
-  postgresVersion: argv["pg-version"],
-});
+let pg;
+const startInstance = () =>
+  startPgHere({
+    projectDir: process.cwd(),
+    port: argv.port,
+    username: argv.username,
+    password: argv.password,
+    database: argv.database,
+    postgresVersion: argv["pg-version"],
+  });
+
+try {
+  pg = await startPgHereWithLibxml2Compat(startInstance, process.cwd());
+} catch (error) {
+  if (process.platform === "linux") {
+    maybePrintLinuxRuntimeHelp(error);
+  }
+  throw error;
+}
 
 console.log(pg.databaseConnectionString);
 setInterval(() => {}, 1 << 30);
