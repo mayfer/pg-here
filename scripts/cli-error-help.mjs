@@ -8,8 +8,9 @@ import {
   readdirSync,
   rmSync,
   symlinkSync,
-  F_OK,
 } from "node:fs";
+import { constants } from "node:fs";
+const { F_OK } = constants;
 import { join } from "node:path";
 
 const LIBXML2_SONAME = "libxml2.so.2";
